@@ -1,3 +1,3 @@
-rm -rf hi.*
+# rm -rf hi*.pdf
 
-./Receiver 127.0.0.1 2031 test2 ./hi2.pdf dw
+./Receiver 127.0.0.1 2031 test ./hi3.pdf

@@ -11,9 +11,25 @@
 
 #define MAX_LINE 511
 #define MAX_SIZE 1024
+#define CHECK_BUF_SIZE 4
 
 int tcp_connect(char *ip, int host);
 void errquit(char* mesg) { perror(mesg); exit(0); }
+
+std::string buf2str(char* checker, int bufflen)
+{
+    std::string tempStr; 
+
+	for(int i = 0; i < bufflen; ++i) {
+		char buf[bufflen];
+
+		snprintf(buf, bufflen, "%02x", checker[i]);
+
+		tempStr += buf;
+	}
+
+	return tempStr;
+}
 
 int main(int argc, char* argv[])
 {
@@ -23,7 +39,9 @@ int main(int argc, char* argv[])
 	FILE* file;
 	size_t fsize;
 	std::string fileNm = argv[3];
+	std::string errStr("00000000");
 	char buffer[MAX_SIZE];
+	char checker[4];
 	char filename[MAX_LINE], temp[5];
 	
 	if (argc != 5) {
@@ -36,18 +54,32 @@ int main(int argc, char* argv[])
 	if (listen_sock == -1)
 		errquit("tcp_connect fail");
 
+
+	// STEP 1 :: send filename to node server (filename size, max 511)
 	send(listen_sock, fileNm.c_str(), fileNm.size(), 0);
 
+	// STEP 2 :: receive check Result as Buffer from server (4 bytes);
+	int nbyte = recv(listen_sock, checker, 4, 0);
+	
+	// STEP 3 :: Using buf2str function, get checkerString
+	std::string checkerString = buf2str(checker, CHECK_BUF_SIZE);
+	
+	// STEP 4 :: Compare checkerString with errorString.
+	// If same, this process will be shut down.
+	if(checkerString == errStr) return std::cout << "[ERROR] No File Exists.\n", 0;
+
+	// If file exists, start downloading file.
+	// First, get File pointer with "wb" option and pathname(argv[4])
 	file = fopen(argv[4], "wb");
 
-	int nbyte = MAX_SIZE;
+	nbyte = MAX_SIZE;
 
 	while (nbyte) {
 		nbyte = recv(listen_sock, buffer, MAX_SIZE, 0);
 		fwrite(buffer, sizeof(char), nbyte, file);
 	}
 
-	printf("Finished.\n");
+	std::cout << "[SUCCESS] \"" << fileNm << "\" Download Finished.\n";
 	fclose(file);
 }
 
